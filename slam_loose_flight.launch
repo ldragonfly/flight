@@ -23,11 +23,11 @@
 		<rosparam file="$(find controller)/parameter.yaml"/>
         <remap from="/estimator/pose" to="/mavros/local_position/pose" />
         <remap from="/estimator/vel" to="/mavros/local_position/velocity" />
+        <remap from="/controller/qd" to="/desired_uav/qd"/>
 		<remap from="/controller/xd" to="/desired_uav/xd"/>
 		<remap from="/controller/dxd" to="/desired_uav/dxd"/>
 		<remap from="/controller/ddxd" to="/desired_uav/ddxd"/>
 		<remap from="/controller/dddxd" to="/desired_uav/dddxd"/>
-        <remap from="/controller/yaw_desired" to="/desired_uav/yaw_desired"/>
 	</node>
 
 	<node name="desired_uav" pkg="desired_uav" type="desired_uav" output="screen" launch-prefix="screen" >
@@ -67,6 +67,44 @@
 	</node>
 
 	<node pkg="rosbag" type="record" name="record" output="screen" args="
+        /ORB_SLAM/Frame
+        /ORB_SLAM/Map
+        /ORB_SLAM/pose
+        
+        /controller/e
+        /controller/m_hat
+       
+        /desired_uav/dxd
+        /desired_uav/xd
+        /desired_uav/yaw_desired
+
+        /frame_calibrator/All4FrameCalib
+        /frame_calibrator/calib_result
+        /frame_calibrator/metric_pose
+        /frame_calibrator/metric_validness
+
+        /mavros/actuator_control
+        /mavros/altitude
+        /mavros/distance_sensor/px4flow
+        /mavros/global_position/raw/fix
+        /mavros/global_position/raw/gps_vel
+        /mavros/global_position/raw/sat_num
+        /mavros/imu/atm_pressure
+        /mavros/imu/data
+        /mavros/imu/data_raw
+        /mavros/imu/mag
+
         /mavros/local_position/pose
+        /mavros/local_position/velocity
+
+        /mavros/px4flow/ground_distance
+        /mavros/px4flow/raw/optical_flow_rad
+        /mavros/vision_pose/pose
+
+        /usb_cam/image_raw
+        
+        /vision_pose_adapter/init_pose
+        /vision_pose_adapter/vicon/framed_pose
+        
 		-O /home/nuc/workspace/bag/px4_slam_flight"/>
 </launch>
