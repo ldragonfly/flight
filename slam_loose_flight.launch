@@ -59,15 +59,21 @@
 	<node name="frame_calibrator" pkg="frame_calibrator" type="frame_calibrator" output="screen"  launch-prefix="screen">
         <remap from="/SLAM/pose" to="/ORB_SLAM/pose" />
         <remap from="/estimator/pose" to="/mavros/local_position/pose" />
+        <remap from="/estimator/distance" to="/teraranger_duo/infrared" />
 	</node>
 
 	<node pkg="ORB_SLAM" type="ORB_SLAM" name="ORB_SLAM"  args="Data/ORBvoc.txt Data/Settings.yaml" cwd="node" output="screen">
         <remap from="/camera/image_raw" to="/usb_cam/image_raw" />
-        <remap from="/estimator/pose" to="/mavros/local_position/pose" />
+        <!-- Change Name Later -->
+        <remap from="/estimator/pose" to="/frame_calibrator/pose4calib" />
 	</node>
 
+    <node pkg="teraranger" type="duo" name="teraranger_duo" output="log" args="_portname:=/dev/ttyUSB1">
+    </node>
+
 	<node pkg="rosbag" type="record" name="record" output="screen" args="
-        /ORB_SLAM/Frame
+        /tf
+
         /ORB_SLAM/Map
         /ORB_SLAM/pose
         
@@ -101,10 +107,17 @@
         /mavros/px4flow/raw/optical_flow_rad
         /mavros/vision_pose/pose
 
-        /usb_cam/image_raw
-        
         /vision_pose_adapter/init_pose
         /vision_pose_adapter/vicon/framed_pose
         
 		-O /home/nuc/workspace/bag/px4_slam_flight"/>
+
+	<node pkg="rosbag" type="record" name="record_ORBSLAM_Frame" output="screen" args="
+        /ORB_SLAM/Frame
+		-O /home/nuc/workspace/bag/px4_slam_flight_ORBSLAM_Frame"/>
+
+	<node pkg="rosbag" type="record" name="record_usbcam" output="screen" args="
+        /usb_cam/image_raw
+		-O /home/nuc/workspace/bag/px4_slam_flight_usbcam"/>
+
 </launch>
