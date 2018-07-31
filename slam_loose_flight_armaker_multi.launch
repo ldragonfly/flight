@@ -1,0 +1,221 @@
+<?xml version="1.0"?>
+
+<launch>
+
+	<arg name="fcu_url" default="serial:///dev/ttyUSB0:921600" />
+    <arg name="gcs_url" default="udp://:14550@127.0.0.1:14557" />
+	<arg name="tgt_system" default="1" />
+	<arg name="tgt_component" default="1" />   	 
+
+	<node name="mavros" pkg="mavros" type="mavros_node" output="screen" launch-prefix="screen">
+		<param name="fcu_url" value="$(arg fcu_url)" />
+        <param name="gcs_url" value="$(arg gcs_url)" />
+		<param name="target_system_id" value="$(arg tgt_system)" />
+		<param name="target_component_id" value="$(arg tgt_component)" /> 
+
+		<param name="distance_sensor/px4flow/id" value="0" /> 
+		<param name="distance_sensor/px4flow/frame_id" value="px4flow" /> 
+		<param name="distance_sensor/px4flow/field_of_view" value="5" /> 
+		
+		<param name="conn_heartbeat" value="5.0" />
+		<param name="conn_timeout" value="5.0" />
+	</node>
+
+	<node name="controller" pkg="controller" type="controller" output="screen" launch-prefix="screen">
+		<rosparam file="$(find controller)/parameter.yaml"/>
+        <remap from="/estimator/pose" to="/mavros/local_position/pose" />
+        <remap from="/estimator/vel" to="/mavros/local_position/velocity" />
+        <remap from="/controller/qd" to="/desired_uav/qd"/>
+		<remap from="/controller/xd" to="/desired_uav/xd"/>
+		<remap from="/controller/dxd" to="/desired_uav/dxd"/>
+		<remap from="/controller/ddxd" to="/desired_uav/ddxd"/>
+		<remap from="/controller/dddxd" to="/desired_uav/dddxd"/>
+	</node>
+
+	<node name="desired_uav" pkg="desired_uav" type="desired_uav" output="screen" launch-prefix="screen" >
+	    <rosparam file="$(find desired_uav)/parameter.yaml"/>
+        <remap from="/estimator/pose" to="/mavros/local_position/pose" />
+        <remap from="/estimator/velocity" to="/mavros/local_position/velocity" />
+        <remap from="/estimator/init_pose" to="/vision_pose_adapter/init_pose" />
+	</node>
+
+	<node name="vision_pose_adapter" pkg="vision_pose_adapter" type="vision_pose_adapter" output="screen" launch-prefix="screen">
+		<rosparam file="$(find vision_pose_adapter)/parameter.yaml"/>
+		<param name="vicon_use" value="0" />
+		<param name="slam_use" value="1" />
+        <param name="marker_use" value="1" />
+
+        <remap from="/camera/camera_info" to="/usb_cam/camera_info"/>
+        <remap from="/estimator/init_pose" to="/vision_pose_adapter/init_pose" />
+        <remap from="/SLAM/pose" to="/ORB_SLAM/pose" />
+	</node>
+
+	<node pkg="usb_cam" type="usb_cam_node" name="usb_cam">
+        <param name="video_device" value="/dev/video0" />
+        <param name="image_width" value="640" />
+        <param name="image_height" value="480" />
+        <param name="pixel_format" value="yuyv" />
+        <param name="camera_frame_id" value="usb_cam" />
+        <param name="io_method" value="mmap"/>
+	</node>
+
+	<node name="frame_calibrator" pkg="frame_calibrator" type="frame_calibrator" output="screen"  launch-prefix="screen">
+        <remap from="/SLAM/pose" to="/ORB_SLAM/pose" />
+        <remap from="/estimator/pose" to="/mavros/local_position/pose" />
+        <remap from="/estimator/distance" to="/teraranger_duo/infrared" />
+	</node>
+
+	<node pkg="ORB_SLAM" type="ORB_SLAM" name="ORB_SLAM"  args="Data/ORBvoc.txt Data/Settings.yaml" cwd="node" output="screen">
+        <remap from="/camera/image_raw" to="/usb_cam/image_raw" />
+        <!-- Change Name Later -->
+        <remap from="/estimator/pose" to="/frame_calibrator/pose4calib" />
+	</node>
+
+    <node pkg="teraranger" type="duo" name="teraranger_duo" output="log" args="_portname:=/dev/ttyUSB1">
+    </node>
+
+	<node pkg="ueye_set_param" type="ueye_set_param" name="ueye_set_param_1"> 
+		<remap from="/ueye_set_param/camera_info" to="/ar_multi_boards/camera_info" />
+    </node>
+
+	<!-- see cfg/mono.cfg for detail -->  
+	<arg name="camera_id"		default="0" />
+	<arg name="auto_exposure"	default="false" />
+	<arg name="auto_gain"		default="false" />
+	<arg name="color"		default="0" /> <!-- 0:MONO8, 1:MONO16, 2:YUV, 3:YCbCr, 4:BGR5, 5:BGR565, 6:BGR8, 7:BGRA8, 9:BGRY8, 9:RGB8, 10:RGBA8, 11, RGBY8 -->
+	<arg name="config_path"		default="" />
+	<arg name="exposure_time"	default="20" />
+	<arg name="force_streaming"	default="false" />
+	<arg name="frame_id"		default="/camera" />
+	<arg name="frame_rate"		default="30" />
+	<arg name="gain"		default="400" />
+	<arg name="gain_boost"		default="false" />
+	<arg name="hardware_gamma"	default="true" />
+	<arg name="pixel_clock"		default="12" />
+	<arg name="trigger"		default="0" /> <!-- 0:AUTO, 1:HARDWARE_RISING, 2:HARDWARE_FALLING -->
+	<arg name="zoom"		default="1" />
+
+	<node pkg="nodelet" type="nodelet" name="ueye_manager" args="manager" output="screen" >
+        <remap from="/image_raw" to="~/image_raw" />
+    </node>
+
+	<node pkg="nodelet" type="nodelet" name="camera_nodelet" args="load ueye/CameraNodelet ueye_manager" >
+		<param name="cameraId"		value="$(arg camera_id)" />
+		<param name="auto_exposure"	value="$(arg auto_exposure)" />
+		<param name="auto_gain"		value="$(arg auto_gain)" />
+		<param name="color"		value="$(arg color)" />
+		<param name="config_path"	value="$(arg config_path)" />
+		<param name="exposure_time"	value="$(arg exposure_time)" />
+		<param name="force_streaming"	value="$(arg force_streaming)" />
+		<param name="frame_id"		value="$(arg frame_id)" />
+		<param name="frame_rate"	value="$(arg frame_rate)" />
+		<param name="gain"		value="$(arg gain)" />
+		<param name="gain_boost"	value="$(arg gain_boost)" />
+		<param name="hardware_gamma"	value="$(arg hardware_gamma)" />
+		<param name="pixel_clock"	value="$(arg pixel_clock)" />
+		<param name="trigger"		value="$(arg trigger)" />
+		<param name="zoom"		value="$(arg zoom)" />
+	</node>
+<!--
+	<node pkg="ar_sys" type="single_board" name="ar_single_board">
+		<remap from="/camera_info" to="/ueye_set_param/camera_info" />
+		<remap from="/image" to="/ueye_manager/image_raw" />
+		<remap from="/ar_single_board/pose" to="/ar_sys/pose_CM1" />
+		
+		<param name="image_is_rectified" type="bool" value="true"/>
+		<param name="marker_size" type="double" value="0.15"/>
+		<param name="board_config" type="string" value="/home/nuc/workspace/src/vision_pose_adapter/ARmarkers/board_BMRR1.yml"/>
+		<param name="board_frame" type="string" value="/board1" />
+		<param name="draw_markers" type="bool" value="false" />
+		<param name="draw_markers_cube" type="bool" value="true" />
+		<param name="draw_markers_axis" type="bool" value="false" />
+	</node>
+-->
+
+	<node pkg="ar_sys" type="multi_boards" name="ar_multi_boards">
+		<remap from="/image" to="/ueye_manager/image_raw" />
+        <remap from="/camera_info" to="/ar_multi_boards/camera_info" />
+		
+		<remap from="/ar_multi_boards/pose1" to="/ar_sys/pose_CM1" />
+		<remap from="/ar_multi_boards/pose2" to="/ar_sys/pose_CM2" />
+		<remap from="/ar_multi_boards/pose3" to="/ar_sys/pose_CM3" />		
+
+		<param name="image_is_rectified" type="bool" value="true"/>
+		<param name="boards_config" type="string" value="/home/nuc/workspace/src/vision_pose_adapter/ARmarkers/boards.yml"/>
+		<param name="boards_directory" type="string" value="/home/nuc/workspace/src/vision_pose_adapter/ARmarkers"/>
+		<param name="draw_markers" type="bool" value="false" />
+		<param name="draw_markers_cube" type="bool" value="true" />
+		<param name="draw_markers_axis" type="bool" value="false" />
+	</node>
+
+	<node pkg="rosbag" type="record" name="record" output="screen" args="
+        /tf
+
+        /ORB_SLAM/Map
+        /ORB_SLAM/pose
+        
+        /controller/e
+        /controller/m_hat
+       
+        /desired_uav/dxd
+        /desired_uav/xd
+        /desired_uav/yaw_desired
+
+        /frame_calibrator/All4FrameCalib
+        /frame_calibrator/calib_result
+        /frame_calibrator/metric_pose
+        /frame_calibrator/metric_validness
+
+        /mavros/actuator_control
+        /mavros/altitude
+        /mavros/distance_sensor/px4flow
+        /mavros/global_position/raw/fix
+        /mavros/global_position/raw/gps_vel
+        /mavros/global_position/raw/sat_num
+        /mavros/imu/atm_pressure
+        /mavros/imu/data
+        /mavros/imu/data_raw
+        /mavros/imu/mag
+
+        /mavros/local_position/pose
+        /mavros/local_position/velocity
+
+        /mavros/px4flow/ground_distance
+        /mavros/px4flow/raw/optical_flow_rad
+        /mavros/vision_pose/pose
+
+        /vision_pose_adapter/init_pose
+        /vision_pose_adapter/vicon/framed_pose
+        
+		-O /home/nuc/workspace/bag/px4_slam_flight"/>
+
+	<node pkg="rosbag" type="record" name="record_ORBSLAM_Frame" output="screen" args="
+        /ORB_SLAM/Frame
+		-O /home/nuc/workspace/bag/slam_flight_armarker_ORBSLAM_image"/>
+
+	<node pkg="rosbag" type="record" name="record_ueye_image" output="screen" args="
+        /ueye_manager/image_raw
+		-O /home/nuc/workspace/bag/slam_flight_armarker_ueye_image"/>
+
+	<!--node pkg="rosbag" type="record" name="record_usbcam" output="screen" args="
+        /usb_cam/image_raw
+		-O /home/nuc/workspace/bag/slam_flight_armarker_usbcam_image"/-->
+
+
+	<node pkg="rosbag" type="record" name="record_armarker_image" output="screen" args="
+        /ar_multi_boards/result
+	-O /home/nuc/workspace/bag/slam_flight_armarker_image"/>
+	<node pkg="rosbag" type="record" name="record_armarker_data" output="screen" args="
+        /ar_sys/pose_CM1
+        /ar_sys/pose_CM2
+        /ar_sys/pose_CM3
+        /vision_pose_adapter/marker/pose_BM1
+        /vision_pose_adapter/marker/pose_GM1
+        /vision_pose_adapter/marker/pose_BM2
+        /vision_pose_adapter/marker/pose_GM2
+        /vision_pose_adapter/marker/pose_BM3
+        /vision_pose_adapter/marker/pose_GM3
+	-O /home/nuc/workspace/bag/slam_flight_armarker_data.bag"/>
+
+
+</launch>
