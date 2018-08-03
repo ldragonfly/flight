@@ -1,6 +1,5 @@
 <?xml version="1.0"?>
 <launch>
-    <include file="$(find ueye_cam)/launch/ueye_mono8.launch"/>
     <include file="$(find mavros)/launch/px4.launch"/>
 
 	<node name="controller" pkg="controller" type="controller" output="screen" launch-prefix="screen">
@@ -45,14 +44,15 @@
     <node pkg="rosbag" type="record" name="rosbag_record_data"
         args="record -O /home/quad/vinsmono_result/data
         /mavros/imu/data_raw
-        /camera/image_raw" 
+        /camera/image_raw"
     />
-    <!--node pkg="rosbag" type="record" name="rosbag_record_result_feature"
+    <node pkg="rosbag" type="record" name="rosbag_record_result_feature"
         args="record -O /home/quad/vinsmono_result/result_feature
         /feature_tracker/feature
         /feature_tracker/feature_img
-        /feature_tracker/restart"
-    /-->
+        /feature_tracker/restart
+        /fiducial_images"
+    />
     <node pkg="rosbag" type="record" name="rosbag_record_result_data"
         args="record -O /home/quad/vinsmono_result/result_data
         /tf
@@ -91,6 +91,10 @@
         /vins_estimator/path
         /vins_estimator/point_cloud
         /vins_estimator/relo_relative_pose
-        /vins_estimator/relocalization_path" 
+        /vins_estimator/relocalization_path
+
+        /aruco/marker/pose_BM1
+        /aruco/marker/pose_GM1
+        /aruco/marker/pose_CM"
     />
 </launch>

@@ -1,0 +1,44 @@
+<?xml version="2.0"?>
+<!-- Run the aruco_detect node -->
+<launch>
+    
+  <include file="$(find ueye_cam)/launch/temp_twoueye.launch"/>
+  
+  <!-- namespace for camera input -->
+  <arg name="camera" default="/camera/down"/>
+  <arg name="image" default="image_raw"/>
+  <arg name="transport" default="compressed"/>
+  <arg name="fiducial_len" default="0.06"/>
+  <arg name="dictionary" default="3"/>
+  <arg name="do_pose_estimation" default="true"/>
+
+  <node pkg="aruco_detect" name="aruco_detect"
+    type="aruco_detect" output="screen" respawn="false">
+    <!--param name="image_transport" value="$(arg transport)"/-->
+    <param name="image_transport" value="$(arg transport)"/>
+    <param name="publish_images" value="true" />
+    <param name="fiducial_len" value="$(arg fiducial_len)"/>
+    <param name="dictionary" value="$(arg dictionary)"/>
+    <param name="do_pose_estimation" value="$(arg do_pose_estimation)"/>
+    <remap from="/camera/compressed" 
+        to="$(arg camera)/$(arg image)/$(arg transport)"/>
+    <remap from="/camera_info" to="$(arg camera)/camera_info"/>
+
+    <remap from="/fiducial_transforms" to="/aruco/marker/pose_CM"/>
+  </node>
+
+  <node name="vision_pose_adapter" pkg="vision_pose_adapter" type="vision_pose_adapter" launch-prefix="screen" >
+		<rosparam file="$(find vision_pose_adapter)/parameter.yaml"/>
+        <param name="fcu_use" value="0" />
+		<param name="vicon_use" value="0" />
+		<param name="slam_use" value="0" />
+		<param name="marker_use" value="1" />
+
+        <remap from="/marker/pose_CM" to="/aruco/marker/pose_CM" />
+        <remap from="/marker/pose_BM1" to="/aruco/marker/pose_BM1" />
+        <remap from="/marker/pose_GM1" to="/aruco/marker/pose_GM1" />
+        <remap from="/estimator/odometry" to="/vins_estimator/imu_propagate" />
+  </node>	
+
+
+</launch>
